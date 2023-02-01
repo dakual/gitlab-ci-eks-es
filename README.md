@@ -73,8 +73,8 @@ K8S_SERVER with the address of the kubernetes API server
 Kubernetes access to GitLab
 To allow access from Kubernetes to the GitLab registry, navigate to Personal menu > Settings > Access Tokens and create a Personnal Access Token with the scope api.
 
+Create a PullSecret called gitlab-token
 ```
-create a PullSecret called gitlab-token
 kubectl create secret docker-registry gitlab-token 
   --docker-server=<gitlab.server:port>
   --docker-username=<gitlab-token-name> 
