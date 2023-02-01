@@ -1,0 +1,80 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: es-exporter
+  namespace: monitoring
+  labels:
+    app: es-exporter
+spec:
+  selector:
+    matchLabels:
+      app: es-exporter
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  template:
+    metadata:
+      annotations:
+      labels:
+        app: es-exporter
+    spec:
+      containers:
+      - name: es-exporter
+        image: $CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA
+        imagePullPolicy: Always
+        env:
+        - name: ES_URI
+          value: $ES_URI
+        - name: ES_APIKEY
+          value: $ES_APIKEY
+        - name: APP_PORT
+          value: "9000"
+        ports:
+        - name: http
+          containerPort: 9000
+        volumeMounts:
+          - name: inventories
+            mountPath: /app/inventories.yaml
+            subPath: inventories.yaml
+        resources:
+          limits:
+            memory: "128Mi"
+            cpu: "500m"
+      volumes:
+        - name: inventories
+          configMap:
+            name: es-inventories-config
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: es-exporter
+  namespace: monitoring
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/path: /metrics
+    prometheus.io/port: "9000"
+spec:
+  selector:
+    app: es-exporter
+  ports:
+    - name: http-metrics
+      port: 9000
+      targetPort: 9000
+      protocol: TCP
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: es-inventories-config
+  namespace: monitoring
+data:
+  inventories.yaml: |
+    ErrorCodes:
+    - ERROR001
+    - ERROR002
+    - ERROR003
+    - ERROR004
+    - ERROR005

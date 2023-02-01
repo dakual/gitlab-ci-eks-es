@@ -1,0 +1,16 @@
+version: "3.1"
+services:
+  es-exporter:
+    container_name: es-exporter
+    image: es-exporter
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ./inventories.yaml:/app/inventories.yaml
+    environment: 
+      - ES_URI=<ES_URI>
+      - ES_APIKEY=<ES_APIKEY>
+      - APP_PORT=9000
+    ports:
+      - "9000:9000"

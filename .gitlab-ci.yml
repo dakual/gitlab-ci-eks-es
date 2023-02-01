@@ -1,0 +1,59 @@
+variables:
+  IMAGE_NAME: kurtay/es-exporter
+  IMAGE_TAG: latest
+  RUNNER_TAGS: docker
+
+stages:
+  - build
+  - deploy
+  - destroy
+
+build:
+  stage: build
+  image: docker:latest
+  services:
+    - docker:dind
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  script:
+    - docker build --tag $CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA --tag $CI_REGISTRY_IMAGE:latest .
+    - docker push $CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA
+    - docker push $CI_REGISTRY_IMAGE:latest
+  tags:
+    - ${RUNNER_TAGS}
+
+deploy:
+  stage: deploy
+  image: registry.gitlab.com/gitlab-org/cloud-deploy/aws-base:latest
+  before_script: 
+    - apt-get install gettext -y
+    - aws --version
+    - aws eks update-kubeconfig --region $AWS_DEFAULT_REGION --name $AWS_CLUSTER
+    - curl --silent --location -o /usr/local/bin/kubectl https://storage.googleapis.com/kubernetes-release/release/v1.25.4/bin/linux/amd64/kubectl
+    - chmod +x /usr/local/bin/kubectl
+  script:
+    - envsubst < deployment.tmpl > deployment.yaml
+    - kubectl apply -f deployment.yaml
+  artifacts:
+    paths:
+      - deployment.yaml
+  dependencies:
+    - build
+  tags:
+    - ${RUNNER_TAGS}
+
+destroy:
+  stage: destroy
+  image: registry.gitlab.com/gitlab-org/cloud-deploy/aws-base:latest
+  before_script: 
+    - aws --version
+    - aws eks update-kubeconfig --region $AWS_DEFAULT_REGION --name $AWS_CLUSTER
+    - curl --silent --location -o /usr/local/bin/kubectl https://storage.googleapis.com/kubernetes-release/release/v1.25.4/bin/linux/amd64/kubectl
+    - chmod +x /usr/local/bin/kubectl
+  script:
+    - kubectl delete -f deployment.yaml 
+  when: manual
+  dependencies:
+    - deploy
+  tags:
+    - ${RUNNER_TAGS}
